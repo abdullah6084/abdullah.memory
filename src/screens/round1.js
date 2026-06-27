@@ -25,8 +25,12 @@ export function renderRound1() {
     cell.addEventListener("click", () => {
       if (showing || won) return;
       if (!targets.has(index)) {
+        playWrongSound();
         finish(false);
         return;
+      }
+      if (!picked.has(index)) {
+        playCorrectSound();
       }
       picked.add(index);
       cell.classList.add("picked");
@@ -45,12 +49,7 @@ export function renderRound1() {
 
   function finish(success) {
     won = true;
-    if (success) {
-      addPoint();
-      playCorrectSound();
-    } else {
-      playWrongSound();
-    }
+    if (success) addPoint();
     screen.append(resultOverlay(success, () => {
       const next = nextPlayerOrRound("round2");
       navigate(next, { replace: next === "round1" });

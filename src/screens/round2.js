@@ -5,9 +5,15 @@ import { gameScreen, hint, playerBadge, resultOverlay, timerBar } from "./round1
 
 const EMOJIS = ["😎", "😊", "😜", "😍", "🤔", "😇", "🙂", "😵", "😡", "🥳"];
 const SPEED_DELAY = {
-  slow: 900,
-  medium: 560,
-  fast: 320
+  slow: 1200,
+  medium: 760,
+  fast: 420
+};
+
+const SPEED_DURATION = {
+  slow: 820,
+  medium: 520,
+  fast: 300
 };
 
 export function renderRound2() {
@@ -17,7 +23,11 @@ export function renderRound2() {
   let canChoose = false;
   let finished = false;
 
-  const screen = gameScreen("Раунд 2 из 3", "Смайлики в тарелках", "Запомните, в какой тарелке ваш смайлик!", "Показ 10 секунд");
+  const screen = gameScreen("Раунд 2 из 3", "Смайлики в тарелках", "Запомните свой смайлик и следите за тарелкой!", "Показ 10 секунд");
+  const targetCard = document.createElement("div");
+  targetCard.className = "target-emoji";
+  targetCard.innerHTML = `<span>Ваш смайлик</span><strong>${targetEmoji}</strong>`;
+
   const plates = document.createElement("div");
   plates.className = "plates";
   plates.style.setProperty("--plate-count", count);
@@ -27,7 +37,8 @@ export function renderRound2() {
     plate.type = "button";
     plate.className = "plate";
     plate.dataset.target = index === targetIndex ? "true" : "false";
-    plate.textContent = index === targetIndex ? targetEmoji : EMOJIS[index % EMOJIS.length];
+    const emoji = index === targetIndex ? targetEmoji : nextDecoyEmoji(index, targetEmoji);
+    plate.innerHTML = `<span class="plate-face">${emoji}</span>`;
     plate.addEventListener("click", () => {
       if (!canChoose || finished) return;
       finished = true;
@@ -49,30 +60,71 @@ export function renderRound2() {
 
   const timer = timerBar(10, () => {
     plates.querySelectorAll(".plate").forEach((plate) => {
-      plate.textContent = "🍽";
       plate.classList.add("hidden-emoji");
     });
-    shufflePlates(plates, SPEED_DELAY[state.settings.speed], () => {
+    screen.querySelector(".hint-title").textContent = "Следите за перемещением тарелки.";
+    shufflePlates(plates, state.settings.speed, () => {
       canChoose = true;
       screen.querySelector(".hint-title").textContent = "Выберите свою тарелку.";
     });
   });
 
-  screen.querySelector(".content").append(playerBadge(), plates, timer, hint("Потом тарелки перемешаются! Выберите свою тарелку."));
+  screen.querySelector(".content").append(playerBadge(), targetCard, plates, timer, hint("После переворота тарелки перемешаются. Следите за своей тарелкой."));
   return screen;
 }
 
-function shufflePlates(container, delay, done) {
+function nextDecoyEmoji(index, targetEmoji) {
+  const decoys = EMOJIS.filter((emoji) => emoji !== targetEmoji);
+  return decoys[index % decoys.length];
+}
+
+function shufflePlates(container, speed, done) {
   let moves = 0;
+  const delay = SPEED_DELAY[speed];
+  const duration = SPEED_DURATION[speed];
   const interval = setInterval(() => {
     const items = [...container.children];
     const a = Math.floor(Math.random() * items.length);
     const b = Math.floor(Math.random() * items.length);
-    container.insertBefore(items[a], items[b]);
+
+    if (a !== b) {
+      animateSwap(container, items[a], items[b], duration);
+    }
+
     moves += 1;
-    if (moves > 12) {
+    if (moves > 10) {
       clearInterval(interval);
-      done();
+      setTimeout(done, duration);
     }
   }, delay);
+}
+
+function animateSwap(container, first, second, duration) {
+  const firstBox = first.getBoundingClientRect();
+  const secondBox = second.getBoundingClientRect();
+  const marker = document.createComment("swap");
+
+  container.insertBefore(marker, first);
+  container.insertBefore(first, second);
+  container.insertBefore(second, marker);
+  marker.remove();
+
+  const nextFirstBox = first.getBoundingClientRect();
+  const nextSecondBox = second.getBoundingClientRect();
+
+  animateMove(first, firstBox, nextFirstBox, duration);
+  animateMove(second, secondBox, nextSecondBox, duration);
+}
+
+function animateMove(element, from, to, duration) {
+  element.animate(
+    [
+      { transform: `translate(${from.left - to.left}px, ${from.top - to.top}px)` },
+      { transform: "translate(0, 0)" }
+    ],
+    {
+      duration,
+      easing: "cubic-bezier(0.2, 0.8, 0.2, 1)"
+    }
+  );
 }

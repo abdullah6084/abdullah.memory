@@ -1,4 +1,4 @@
-const CACHE = "abdullah-memory-v3";
+const CACHE = "abdullah-memory-v4";
 const ASSETS = [
   "./",
   "./index.html",
